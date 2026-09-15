@@ -5,11 +5,12 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database.types";
 
 /**
- * Service-role Supabase client. SERVER-ONLY.
+ * Privileged (secret key) Supabase client. SERVER-ONLY.
  *
  * The `import "server-only"` above makes the build FAIL if this module is
- * ever imported into a client component, guaranteeing the service-role
- * key can never reach the browser.
+ * ever imported into a client component, guaranteeing the secret key can
+ * never reach the browser. `SUPABASE_SECRET_KEY` deliberately carries no
+ * `NEXT_PUBLIC_` prefix, so Next.js will not inline it into client bundles.
  *
  * This client BYPASSES Row Level Security. Use it only for trusted,
  * server-side privileged operations (e.g. an admin creating a user,
@@ -18,15 +19,15 @@ import type { Database } from "@/types/database.types";
  */
 export function createAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const secretKey = process.env.SUPABASE_SECRET_KEY;
 
-  if (!url || !serviceRoleKey) {
+  if (!url || !secretKey) {
     throw new Error(
-      "Missing Supabase admin env vars. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (server-side only).",
+      "Missing Supabase admin env vars. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY (server-side only).",
     );
   }
 
-  return createSupabaseClient<Database>(url, serviceRoleKey, {
+  return createSupabaseClient<Database>(url, secretKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,

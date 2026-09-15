@@ -28,11 +28,14 @@ Apply the SQL in `supabase/migrations/` **in order** (Supabase SQL editor or
 
 ### Environment variables
 
-| Variable                        | Exposed to browser | Purpose                          |
-| ------------------------------- | ------------------ | -------------------------------- |
-| `NEXT_PUBLIC_SUPABASE_URL`      | yes                | Supabase project URL             |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | yes                | Anon key (protected by RLS)      |
-| `SUPABASE_SERVICE_ROLE_KEY`     | **no — server only** | Privileged ops (bypasses RLS)  |
+| Variable                               | Exposed to browser   | Purpose                             |
+| -------------------------------------- | -------------------- | ----------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`             | yes                  | Supabase project URL                |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | yes                  | Publishable key (protected by RLS)  |
+| `SUPABASE_SECRET_KEY`                  | **no — server only** | Privileged ops (bypasses RLS)       |
+
+See [`.env.example`](./.env.example) for the template. Before going live,
+work through **[PHASE1_TESTING.md](./PHASE1_TESTING.md)**.
 
 ## Scripts
 

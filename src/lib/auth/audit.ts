@@ -17,8 +17,9 @@ interface AuditInput {
 /**
  * Write an entry to the append-only audit trail.
  *
- * Uses the service-role client so the write always succeeds regardless of
- * the caller's RLS grants, but the actor is taken from the *server-verified*
+ * Uses the privileged secret-key client so the write always succeeds
+ * regardless of the caller's RLS grants, but the actor is taken from the
+ * *server-verified*
  * session — it can never be spoofed by the client. The table itself blocks
  * UPDATE/DELETE via database triggers, so entries can be added but never
  * altered, even by this privileged client.
