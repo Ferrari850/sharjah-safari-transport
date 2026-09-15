@@ -6,10 +6,10 @@ import { getPublicSupabaseEnv } from "./env";
 /**
  * Browser (client component) Supabase client.
  *
- * Uses the public anon key only. All access is constrained by Row Level
- * Security on the database. Never import the admin client here.
+ * Uses the public publishable key only. All access is constrained by Row
+ * Level Security on the database. Never import the admin client here.
  */
 export function createClient() {
-  const { url, anonKey } = getPublicSupabaseEnv();
-  return createBrowserClient<Database>(url, anonKey);
+  const { url, publishableKey } = getPublicSupabaseEnv();
+  return createBrowserClient<Database>(url, publishableKey);
 }

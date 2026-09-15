@@ -79,12 +79,18 @@ supabase/migrations/           # ordered SQL migrations
 
 There are **four** clients, one per trust boundary. Use the right one:
 
-| Client                         | File                         | Key          | RLS  | Use in                              |
-| ------------------------------ | ---------------------------- | ------------ | ---- | ----------------------------------- |
-| Browser                        | `lib/supabase/client.ts`     | anon         | ✅    | Client Components                   |
-| Server                         | `lib/supabase/server.ts`     | anon+session | ✅    | Server Components, Actions, Handlers|
-| Middleware                     | `lib/supabase/middleware.ts` | anon+session | ✅    | `middleware.ts` only                |
-| **Admin** (service-role)       | `lib/supabase/admin.ts`      | service-role | ⛔️   | Trusted server-only privileged ops  |
+| Client                         | File                         | Key                 | RLS  | Use in                              |
+| ------------------------------ | ---------------------------- | ------------------- | ---- | ----------------------------------- |
+| Browser                        | `lib/supabase/client.ts`     | publishable         | ✅    | Client Components                   |
+| Server                         | `lib/supabase/server.ts`     | publishable+session | ✅    | Server Components, Actions, Handlers|
+| Middleware                     | `lib/supabase/middleware.ts` | publishable+session | ✅    | `middleware.ts` only                |
+| **Admin** (secret key)         | `lib/supabase/admin.ts`      | secret              | ⛔️   | Trusted server-only privileged ops  |
+
+Env var names follow Supabase's current key naming:
+`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (browser-safe)
+and `SUPABASE_SECRET_KEY` (server-only). Public values are read through the
+single validated helper `lib/supabase/env.ts`; the secret key is read only in
+`admin.ts`.
 
 - The **admin client bypasses RLS** and is marked `import "server-only"` so the
   build fails if it is ever imported into client code. Always run your own
@@ -147,10 +153,10 @@ There are **four** clients, one per trust boundary. Use the right one:
 
 ## 5. Security rules
 
-- **Service-role key never reaches the browser.** It exists only in
-  `SUPABASE_SERVICE_ROLE_KEY` (no `NEXT_PUBLIC_` prefix) and is used only by
-  `lib/supabase/admin.ts` (`server-only`). Anon URL/key are public by design and
-  safe to ship — they are protected by RLS.
+- **Secret key never reaches the browser.** It exists only in
+  `SUPABASE_SECRET_KEY` (no `NEXT_PUBLIC_` prefix) and is used only by
+  `lib/supabase/admin.ts` (`server-only`). The URL and publishable key are
+  public by design and safe to ship — they are protected by RLS.
 - **Audit log is append-only, guaranteed at the database level:**
   - No `UPDATE`/`DELETE` RLS policy → normal roles cannot modify history.
   - `BEFORE UPDATE` / `BEFORE DELETE` triggers `RAISE EXCEPTION` → even a

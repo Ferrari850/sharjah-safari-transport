@@ -7,18 +7,18 @@ import { getPublicSupabaseEnv } from "./env";
 /**
  * Server (Server Component / Route Handler / Server Action) Supabase client.
  *
- * Reads and writes the session cookies. Uses the anon key + the signed-in
- * user's session, so every query is still subject to Row Level Security —
- * this client has no elevated privileges.
+ * Reads and writes the session cookies. Uses the publishable key + the
+ * signed-in user's session, so every query is still subject to Row Level
+ * Security — this client has no elevated privileges.
  *
  * NOTE: cookie writes from a Server Component are a no-op (Next.js forbids
  * them); the middleware is responsible for refreshing the session cookie.
  */
 export async function createClient() {
   const cookieStore = await cookies();
-  const { url, anonKey } = getPublicSupabaseEnv();
+  const { url, publishableKey } = getPublicSupabaseEnv();
 
-  return createServerClient<Database>(url, anonKey, {
+  return createServerClient<Database>(url, publishableKey, {
     cookies: {
       getAll() {
         return cookieStore.getAll();
