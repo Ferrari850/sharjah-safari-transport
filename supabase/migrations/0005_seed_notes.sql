@@ -1,0 +1,26 @@
+-- =============================================================================
+-- 0005_seed_notes.sql
+-- Not executable seed data — operational notes for bootstrapping the system.
+--
+-- Creating the FIRST administrator (there is no admin yet to promote anyone):
+--
+--   1. Create the auth user (Supabase Studio > Authentication > Add user, or
+--      the Admin API). The on_auth_user_created trigger creates a matching
+--      profile with the default DRIVER role.
+--
+--   2. Promote that user to ADMIN. This UPDATE changes `role`, which the
+--      protect_profile_privileges trigger restricts to admins — so run it with
+--      the service role (SQL editor / service key), which is exempt:
+--
+--        update public.profiles
+--        set role = 'ADMIN'
+--        where email = 'admin@sharjahsafari.ae';
+--
+--   3. From then on, that admin manages all other users and roles in-app
+--      (Phase 2 user-management module) using the server-side admin client.
+--
+-- Do NOT hard-code credentials in migrations or commit real keys.
+-- =============================================================================
+
+-- (intentionally no-op)
+select 1;
