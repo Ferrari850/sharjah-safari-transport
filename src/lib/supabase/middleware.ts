@@ -4,8 +4,14 @@ import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "@/types/database.types";
 import { getPublicSupabaseEnv } from "./env";
 
-/** Routes reachable without an authenticated session. */
-const PUBLIC_PATHS = ["/login", "/auth"];
+/**
+ * Routes reachable without an authenticated session.
+ *
+ * `/auth` covers the email-link landing routes, including
+ * `/auth/update-password`, which a signed-out user must be able to open
+ * straight from their inbox.
+ */
+const PUBLIC_PATHS = ["/login", "/forgot-password", "/auth"];
 
 function isPublicPath(pathname: string) {
   return PUBLIC_PATHS.some(

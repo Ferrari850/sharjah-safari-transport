@@ -37,6 +37,31 @@ Apply the SQL in `supabase/migrations/` **in order** (Supabase SQL editor or
 See [`.env.example`](./.env.example) for the template. Before going live,
 work through **[PHASE1_TESTING.md](./PHASE1_TESTING.md)**.
 
+### Password recovery — required Supabase redirect URLs
+
+"Forgot password?" sends a recovery email whose link returns to
+`/auth/update-password`. Supabase only honours a `redirectTo` that matches an
+entry in **Authentication → URL Configuration → Redirect URLs**; anything else
+is silently rewritten to the Site URL, which lands the user on the dashboard
+with no way to set a password.
+
+Add one entry per environment (exact paths, no wildcard needed):
+
+| Environment | Redirect URL |
+| ----------- | ------------ |
+| Production  | `https://<your-production-domain>/auth/update-password` |
+| Local dev   | `http://localhost:3000/auth/update-password` |
+
+Also set **Site URL** to the production origin (`https://<your-production-domain>`),
+since Supabase falls back to it. If the app is deployed to preview URLs as well,
+add `https://<preview-domain>/auth/update-password` — or a wildcard such as
+`https://*.vercel.app/auth/update-password` — for those too.
+
+The UI enforces a minimum password length (`MIN_PASSWORD_LENGTH` in
+`src/lib/constants/auth.ts`). That is a usability guard only: set the
+authoritative minimum under **Authentication → Sign In / Providers** and keep
+the two in sync.
+
 ## Scripts
 
 ```bash
