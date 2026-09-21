@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertCircle, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ export function LoginForm() {
 
   const redirectTo = searchParams.get("redirect") || "/dashboard";
   const urlError = searchParams.get("error");
+  const passwordWasReset = searchParams.get("reset") === "success";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -61,6 +63,15 @@ export function LoginForm() {
         </Alert>
       )}
 
+      {passwordWasReset && !error && (
+        <Alert className="border-primary/50 text-primary [&>svg]:text-primary">
+          <CheckCircle2 className="size-4" />
+          <AlertDescription>
+            Password updated. Sign in with your new password.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
         <Input
@@ -77,7 +88,15 @@ export function LoginForm() {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="password">Password</Label>
+        <div className="flex items-center justify-between gap-2">
+          <Label htmlFor="password">Password</Label>
+          <Link
+            href="/forgot-password"
+            className="text-xs font-medium text-primary underline-offset-4 hover:underline"
+          >
+            Forgot password?
+          </Link>
+        </div>
         <Input
           id="password"
           name="password"
