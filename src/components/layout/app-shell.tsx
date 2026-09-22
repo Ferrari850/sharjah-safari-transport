@@ -1,6 +1,6 @@
 import { siteConfig } from "@/config/site";
 import { SafariLogo } from "@/components/brand/logo";
-import { SidebarNav } from "@/components/layout/sidebar-nav";
+import { SidebarNav, MobileNav } from "@/components/layout/sidebar-nav";
 import { SignOutButton } from "@/components/auth/signout-button";
 import { RoleBadge } from "@/components/common/role-badge";
 import { ROLE_LABELS, type UserRole } from "@/lib/constants/roles";
@@ -31,7 +31,7 @@ export function AppShell({
         </div>
         <SidebarNav role={role} />
         <div className="mt-auto border-t p-4 text-[11px] text-muted-foreground">
-          Phase 1 · Foundation
+          Phase 2 · Operations
         </div>
       </aside>
 
@@ -54,6 +54,8 @@ export function AppShell({
             <SignOutButton />
           </div>
         </header>
+
+        <MobileNav role={role} />
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
       </div>

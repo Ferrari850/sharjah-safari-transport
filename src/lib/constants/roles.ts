@@ -55,6 +55,22 @@ export const CAPABILITIES = {
     USER_ROLES.TRANSPORT_SUPERVISOR,
     USER_ROLES.MANAGEMENT,
   ],
+  /** Create/update vehicle master data. */
+  MANAGE_VEHICLES: [USER_ROLES.ADMIN, USER_ROLES.TRANSPORT_SUPERVISOR],
+  /** View the vehicle fleet. */
+  VIEW_VEHICLES: [
+    USER_ROLES.ADMIN,
+    USER_ROLES.TRANSPORT_SUPERVISOR,
+    USER_ROLES.MANAGEMENT,
+  ],
+  /** Create/update/cancel scheduled visits. */
+  MANAGE_VISITS: [USER_ROLES.ADMIN, USER_ROLES.TRANSPORT_SUPERVISOR],
+  /** View the visit schedule. */
+  VIEW_VISITS: [
+    USER_ROLES.ADMIN,
+    USER_ROLES.TRANSPORT_SUPERVISOR,
+    USER_ROLES.MANAGEMENT,
+  ],
   /** Read the audit trail. */
   VIEW_AUDIT_LOGS: [USER_ROLES.ADMIN, USER_ROLES.MANAGEMENT],
 } as const;

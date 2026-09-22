@@ -1,7 +1,17 @@
 import type { Metadata } from "next";
-import { Truck, Users, ScrollText, ShieldCheck } from "lucide-react";
+import Link from "next/link";
+import type { ComponentType } from "react";
+import {
+  Bus,
+  CalendarDays,
+  ScrollText,
+  ShieldCheck,
+  Truck,
+  Users,
+} from "lucide-react";
 
 import { requireProfile } from "@/lib/auth/session";
+import { getDashboardStats } from "@/lib/data/stats";
 import { can } from "@/lib/constants/roles";
 import {
   Card,
@@ -17,33 +27,58 @@ export const metadata: Metadata = {
   title: "Dashboard",
 };
 
+type StatCard = {
+  label: string;
+  value: number | null;
+  hint: string;
+  icon: ComponentType<{ className?: string }>;
+  href: string;
+};
+
 export default async function DashboardPage() {
   const profile = await requireProfile();
   const firstName = (profile.full_name || profile.email).split(" ")[0];
+  const stats = await getDashboardStats(profile.role);
 
-  const stats = [
+  const allCards: StatCard[] = [
     {
       label: "Drivers",
-      value: "—",
-      hint: "Phase 2",
+      value: stats.drivers,
+      hint: `${stats.availableDrivers ?? 0} available`,
       icon: Truck,
-      show: can(profile.role, "VIEW_DRIVERS"),
+      href: "/drivers",
     },
     {
       label: "Users",
-      value: "—",
-      hint: "Phase 2",
+      value: stats.users,
+      hint: `${stats.activeUsers ?? 0} active`,
       icon: Users,
-      show: can(profile.role, "MANAGE_USERS"),
+      href: "/users",
+    },
+    {
+      label: "Vehicles",
+      value: stats.vehicles,
+      hint: `${stats.availableVehicles ?? 0} available`,
+      icon: Bus,
+      href: "/vehicles",
+    },
+    {
+      label: "Scheduled visits",
+      value: stats.scheduledVisits,
+      hint: `${stats.upcomingVisits ?? 0} upcoming`,
+      icon: CalendarDays,
+      href: "/visits",
     },
     {
       label: "Audit events",
-      value: "—",
-      hint: "Phase 2",
+      value: stats.auditEvents,
+      hint: "Append-only history",
       icon: ScrollText,
-      show: can(profile.role, "VIEW_AUDIT_LOGS"),
+      href: "/audit",
     },
-  ].filter((s) => s.show);
+  ];
+
+  const cards = allCards.filter((card) => card.value !== null);
 
   return (
     <div className="mx-auto max-w-6xl space-y-8">
@@ -59,23 +94,25 @@ export default async function DashboardPage() {
         <RoleBadge role={profile.role} />
       </div>
 
-      {stats.length > 0 && (
+      {cards.length > 0 && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {stats.map((stat) => {
-            const Icon = stat.icon;
+          {cards.map((card) => {
+            const Icon = card.icon;
             return (
-              <Card key={stat.label}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">
-                    {stat.label}
-                  </CardTitle>
-                  <Icon className="size-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-semibold">{stat.value}</div>
-                  <p className="text-xs text-muted-foreground">{stat.hint}</p>
-                </CardContent>
-              </Card>
+              <Link key={card.label} href={card.href} className="group">
+                <Card className="h-full transition-colors group-hover:border-primary/50">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      {card.label}
+                    </CardTitle>
+                    <Icon className="size-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-semibold">{card.value}</div>
+                    <p className="text-xs text-muted-foreground">{card.hint}</p>
+                  </CardContent>
+                </Card>
+              </Link>
             );
           })}
         </div>
@@ -85,40 +122,56 @@ export default async function DashboardPage() {
         <CardHeader>
           <div className="flex items-center gap-2">
             <ShieldCheck className="size-5 text-primary" />
-            <CardTitle>Phase 1 — Foundation ready</CardTitle>
+            <CardTitle>Phase 2 — Operations</CardTitle>
           </div>
           <CardDescription>
-            Authentication, roles, and the secure data foundation are in place.
-            Operational modules arrive in the next phases.
+            Master data and visit scheduling are live. Assignment and dispatch
+            arrive in Phase 3.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
-          <div className="flex items-center justify-between border-b pb-2">
-            <span>Authentication &amp; sessions</span>
-            <Badge variant="success">Live</Badge>
-          </div>
-          <div className="flex items-center justify-between border-b pb-2">
-            <span>Role-based access control</span>
-            <Badge variant="success">Live</Badge>
-          </div>
-          <div className="flex items-center justify-between border-b pb-2">
-            <span>Profiles &amp; drivers data model</span>
-            <Badge variant="success">Live</Badge>
-          </div>
-          <div className="flex items-center justify-between border-b pb-2">
-            <span>Append-only audit trail</span>
-            <Badge variant="success">Live</Badge>
-          </div>
-          <div className="flex items-center justify-between border-b pb-2">
-            <span>Trips &amp; scheduling</span>
-            <Badge variant="secondary">Phase 2</Badge>
-          </div>
+          <ModuleRow label="Authentication & sessions" status="Live" />
+          <ModuleRow label="Role-based access control" status="Live" />
+          <ModuleRow label="Append-only audit trail" status="Live" />
+          <ModuleRow
+            label="User management"
+            status={can(profile.role, "MANAGE_USERS") ? "Live" : "Restricted"}
+          />
+          <ModuleRow
+            label="Drivers"
+            status={can(profile.role, "VIEW_DRIVERS") ? "Live" : "Restricted"}
+          />
+          <ModuleRow
+            label="Vehicles"
+            status={can(profile.role, "VIEW_VEHICLES") ? "Live" : "Restricted"}
+          />
+          <ModuleRow
+            label="Visits & scheduling"
+            status={can(profile.role, "VIEW_VISITS") ? "Live" : "Restricted"}
+          />
           <div className="flex items-center justify-between">
             <span>Assignments &amp; dispatch</span>
             <Badge variant="secondary">Phase 3</Badge>
           </div>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function ModuleRow({
+  label,
+  status,
+}: {
+  label: string;
+  status: "Live" | "Restricted";
+}) {
+  return (
+    <div className="flex items-center justify-between border-b pb-2">
+      <span>{label}</span>
+      <Badge variant={status === "Live" ? "success" : "outline"}>
+        {status === "Live" ? "Live" : "No access"}
+      </Badge>
     </div>
   );
 }
