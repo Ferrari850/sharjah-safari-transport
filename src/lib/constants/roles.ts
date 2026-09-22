@@ -71,6 +71,8 @@ export const CAPABILITIES = {
     USER_ROLES.TRANSPORT_SUPERVISOR,
     USER_ROLES.MANAGEMENT,
   ],
+  /** Curate the editable business vocabularies (vehicle/trip/visit types). */
+  MANAGE_LOOKUPS: [USER_ROLES.ADMIN, USER_ROLES.TRANSPORT_SUPERVISOR],
   /** Read the audit trail. */
   VIEW_AUDIT_LOGS: [USER_ROLES.ADMIN, USER_ROLES.MANAGEMENT],
 } as const;

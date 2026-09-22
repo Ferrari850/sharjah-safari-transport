@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 
 import { siteConfig } from "@/config/site";
+import { getLocale } from "@/lib/i18n/server";
+import { dirFor } from "@/lib/i18n/config";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -19,11 +21,15 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  // `dir` is set from the viewer's locale rather than hard-coded, so the
+  // whole tree flips to right-to-left without any component changes.
+  const locale = await getLocale();
+
   return (
-    <html lang={siteConfig.locale}>
+    <html lang={locale} dir={dirFor(locale)}>
       <body className="min-h-screen font-sans antialiased">{children}</body>
     </html>
   );

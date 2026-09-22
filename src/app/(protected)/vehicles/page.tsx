@@ -4,14 +4,13 @@ import { Bus, Plus } from "lucide-react";
 
 import { requireCapability } from "@/lib/auth/session";
 import { listVehicles } from "@/lib/data/vehicles";
+import { listLookup } from "@/lib/data/lookups";
 import { enumParam, firstParam } from "@/lib/data/search";
 import { can } from "@/lib/constants/roles";
 import {
   VEHICLE_STATUSES,
   VEHICLE_STATUS_LABELS,
   VEHICLE_STATUS_VARIANTS,
-  VEHICLE_TYPES,
-  VEHICLE_TYPE_LABELS,
 } from "@/lib/constants/vocab";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -41,9 +40,12 @@ export default async function VehiclesPage({
   const params = await searchParams;
   const q = firstParam(params.q);
   const status = enumParam(params.status, VEHICLE_STATUSES);
-  const type = enumParam(params.type, VEHICLE_TYPES);
+  const typeId = firstParam(params.type);
 
-  const vehicles = await listVehicles({ q, status, type });
+  const [vehicles, vehicleTypes] = await Promise.all([
+    listVehicles({ q, status, typeId }),
+    listLookup("vehicle_types"),
+  ]);
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -83,10 +85,10 @@ export default async function VehiclesPage({
           {
             name: "type",
             label: "types",
-            value: type,
-            options: VEHICLE_TYPES.map((t) => ({
-              value: t,
-              label: VEHICLE_TYPE_LABELS[t],
+            value: typeId,
+            options: vehicleTypes.map((t) => ({
+              value: t.id,
+              label: t.active ? t.name : `${t.name} (retired)`,
             })),
           },
         ]}
@@ -133,7 +135,7 @@ export default async function VehiclesPage({
                       {vehicle.plate_number}
                     </TableCell>
                     <TableCell>
-                      {VEHICLE_TYPE_LABELS[vehicle.vehicle_type]}
+                      {vehicle.vehicle_type?.name ?? "—"}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {vehicle.capacity}

@@ -13,10 +13,7 @@ import type {
   DriverStatus,
   LicenseType,
   VehicleStatus,
-  VehicleType,
-  TripType,
   VisitStatus,
-  VisitType,
   AuditAction,
 } from "@/types/database.types";
 
@@ -60,18 +57,11 @@ export const LICENSE_TYPES = Object.keys(LICENSE_TYPE_LABELS) as LicenseType[];
 
 // ---------------------------------------------------------------------------
 // Vehicles
+//
+// `vehicle_type` is NOT here: it is a lookup table (migration 0009) so
+// operations can edit the vocabulary without a migration. Only the workflow
+// state is a fixed enum.
 // ---------------------------------------------------------------------------
-export const VEHICLE_TYPE_LABELS: Record<VehicleType, string> = {
-  BUS: "Bus",
-  MINIBUS: "Minibus",
-  VAN: "Van",
-  SUV: "SUV",
-  CAR: "Car",
-  SAFARI_TRUCK: "Safari truck",
-};
-
-export const VEHICLE_TYPES = Object.keys(VEHICLE_TYPE_LABELS) as VehicleType[];
-
 export const VEHICLE_STATUS_LABELS: Record<VehicleStatus, string> = {
   AVAILABLE: "Available",
   IN_USE: "In use",
@@ -94,33 +84,11 @@ export const VEHICLE_STATUSES = Object.keys(
 
 // ---------------------------------------------------------------------------
 // Visits
+//
+// `visit_type` and `trip_type` are lookup tables (migration 0010), for the
+// same reason. `visit_status` is a workflow state the app branches on, so it
+// stays an enum.
 // ---------------------------------------------------------------------------
-export const VISIT_TYPE_LABELS: Record<VisitType, string> = {
-  VIP: "VIP",
-  OFFICIAL: "Official",
-  SCHOOL: "School",
-  REGULAR: "Regular",
-  SPECIAL: "Special",
-};
-
-export const VISIT_TYPE_VARIANTS: Record<VisitType, BadgeVariant> = {
-  VIP: "default",
-  OFFICIAL: "secondary",
-  SCHOOL: "outline",
-  REGULAR: "outline",
-  SPECIAL: "warning",
-};
-
-export const VISIT_TYPES = Object.keys(VISIT_TYPE_LABELS) as VisitType[];
-
-export const TRIP_TYPE_LABELS: Record<TripType, string> = {
-  ONE_WAY: "One way",
-  ROUND_TRIP: "Round trip",
-  SHUTTLE: "Shuttle",
-};
-
-export const TRIP_TYPES = Object.keys(TRIP_TYPE_LABELS) as TripType[];
-
 export const VISIT_STATUS_LABELS: Record<VisitStatus, string> = {
   DRAFT: "Draft",
   SCHEDULED: "Scheduled",
@@ -172,5 +140,8 @@ export const AUDIT_ENTITY_TYPES = [
   "profiles",
   "drivers",
   "vehicles",
+  "vehicle_types",
   "visits",
+  "trip_types",
+  "visit_types",
 ] as const;

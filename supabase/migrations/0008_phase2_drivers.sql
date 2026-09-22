@@ -2,21 +2,22 @@
 -- 0008_phase2_drivers.sql
 -- Phase 2, part 2 of 4: bring the drivers table to the Phase 2 specification.
 --
--- ⚠️  THIS MIGRATION DROPS TWO COLUMNS AND DESTROYS THEIR DATA.
+-- ⚠️  THIS MIGRATION DROPS ONE COLUMN AND DESTROYS ITS DATA.
 --
 --     public.drivers.license_number   (dropped)
---     public.drivers.license_expiry   (dropped)
 --
---     Dropping `license_number` is a deliberate data-minimisation
---     requirement: the system stores only whether a driver is licensed for
---     LIGHT or HEAVY vehicles, never the licence document number.
---     `license_expiry` goes with it — it is not part of the Phase 2 driver
---     record and is meaningless without the number it belongs to.
+--     Data minimisation: the system records whether a driver is licensed for
+--     LIGHT or HEAVY vehicles, and when that licence expires, but never the
+--     licence document number itself.
 --
---     If either column currently holds data you need, export it BEFORE
+--     `license_expiry` is KEPT — expiry drives operational decisions
+--     (a driver with a lapsed licence should not be scheduled) and carries
+--     none of the identity risk the document number does.
+--
+--     If the number column currently holds data you need, export it BEFORE
 --     applying this migration:
 --
---       select id, employee_id, full_name, license_number, license_expiry
+--       select id, employee_id, full_name, license_number
 --       from public.drivers;
 --
 -- Also replaces the driver_status vocabulary. The Phase 1 enum
@@ -79,15 +80,22 @@ begin
 end $$;
 
 -- ---------------------------------------------------------------------------
--- 3. Licence type on the driver record; retire the licence document columns
+-- 3. Licence type on the driver record; retire the licence document number
 -- ---------------------------------------------------------------------------
 alter table public.drivers
   add column if not exists license_type public.license_type not null default 'LIGHT';
 
+-- The licence document number is never stored. `license_expiry` (added in
+-- 0003) is retained and stays nullable: a driver record may exist before the
+-- licence details are on file.
 alter table public.drivers drop column if exists license_number;
-alter table public.drivers drop column if exists license_expiry;
 
 create index if not exists drivers_license_type_idx on public.drivers (license_type);
+
+-- Expiry is queried when checking who is fit to schedule.
+create index if not exists drivers_license_expiry_idx
+  on public.drivers (license_expiry)
+  where license_expiry is not null;
 
 -- A profile may back at most one driver record. Prevents two driver rows
 -- silently pointing at the same login.

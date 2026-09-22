@@ -8,14 +8,11 @@ import { enumParam, firstParam } from "@/lib/data/search";
 import { isIsoDate } from "@/lib/data/visits";
 import { can } from "@/lib/constants/roles";
 import {
-  TRIP_TYPE_LABELS,
   VISIT_STATUSES,
   VISIT_STATUS_LABELS,
   VISIT_STATUS_VARIANTS,
-  VISIT_TYPES,
-  VISIT_TYPE_LABELS,
-  VISIT_TYPE_VARIANTS,
 } from "@/lib/constants/vocab";
+import { listLookup } from "@/lib/data/lookups";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -46,13 +43,16 @@ export default async function VisitsPage({
   const params = await searchParams;
   const q = firstParam(params.q);
   const status = enumParam(params.status, VISIT_STATUSES);
-  const type = enumParam(params.type, VISIT_TYPES);
+  const typeId = firstParam(params.type);
   const fromRaw = firstParam(params.from);
   const toRaw = firstParam(params.to);
   const from = isIsoDate(fromRaw) ? fromRaw : "";
   const to = isIsoDate(toRaw) ? toRaw : "";
 
-  const visits = await listVisits({ q, status, type, from, to });
+  const [visits, visitTypes] = await Promise.all([
+    listVisits({ q, status, typeId, from, to }),
+    listLookup("visit_types"),
+  ]);
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -102,10 +102,10 @@ export default async function VisitsPage({
             {
               name: "type",
               label: "types",
-              value: type,
-              options: VISIT_TYPES.map((t) => ({
-                value: t,
-                label: VISIT_TYPE_LABELS[t],
+              value: typeId,
+              options: visitTypes.map((t) => ({
+                value: t.id,
+                label: t.active ? t.name : `${t.name} (retired)`,
               })),
             },
           ]}
@@ -118,7 +118,7 @@ export default async function VisitsPage({
         >
           <input type="hidden" name="q" value={q} />
           <input type="hidden" name="status" value={status} />
-          <input type="hidden" name="type" value={type} />
+          <input type="hidden" name="type" value={typeId} />
           <div className="space-y-1">
             <Label htmlFor="from" className="text-xs">
               From date
@@ -186,12 +186,12 @@ export default async function VisitsPage({
                     </TableCell>
                     <TableCell>{visit.delegation_name}</TableCell>
                     <TableCell>
-                      <Badge variant={VISIT_TYPE_VARIANTS[visit.visit_type]}>
-                        {VISIT_TYPE_LABELS[visit.visit_type]}
+                      <Badge variant="secondary">
+                        {visit.visit_type?.name ?? "—"}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {TRIP_TYPE_LABELS[visit.trip_type]}
+                      {visit.trip_type?.name ?? "—"}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {visit.number_of_visitors}

@@ -47,6 +47,30 @@ export function enumOf<T extends string>(
   return (allowed as readonly string[]).includes(raw) ? (raw as T) : null;
 }
 
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** True for a well-formed, real calendar date in YYYY-MM-DD form. */
+export function isIsoDate(value: string | undefined | null): boolean {
+  if (!value || !ISO_DATE_RE.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime())) return false;
+  // Rejects impossible dates that Date would roll over, e.g. 2026-02-31.
+  return parsed.toISOString().slice(0, 10) === value;
+}
+
+/**
+ * An optional date field. Returns `undefined` when the value is present but
+ * not a real date, so the caller can tell "left blank" from "typed wrong".
+ */
+export function nullableDate(
+  form: FormData,
+  name: string,
+): string | null | undefined {
+  const raw = str(form, name);
+  if (raw === "") return null;
+  return isIsoDate(raw) ? raw : undefined;
+}
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 export function isEmail(value: string): boolean {

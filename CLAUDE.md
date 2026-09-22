@@ -55,7 +55,8 @@ src/
 │   │   ├── drivers/
 │   │   ├── vehicles/
 │   │   ├── visits/            # list + calendar/
-│   │   └── audit/
+│   │   ├── audit/
+│   │   └── settings/types/    # editable lookup vocabularies
 │   ├── auth/
 │   │   ├── callback/route.ts  # OAuth / magic-link code exchange
 │   │   └── signout/route.ts   # POST-only sign out
@@ -74,6 +75,7 @@ src/
 │   ├── actions/helpers.ts     # form parsing + DB error mapping
 │   ├── constants/roles.ts     # RBAC single source of truth
 │   ├── constants/vocab.ts     # enum labels + badge variants
+│   ├── i18n/                  # locale, dictionary, RTL direction
 │   └── utils.ts               # cn()
 ├── types/                     # database.types.ts + app types
 ├── config/site.ts
@@ -130,7 +132,18 @@ single validated helper `lib/supabase/env.ts`; the secret key is read only in
   admin client only where nothing else works (provisioning an auth user),
   never to sidestep a policy.
 - **Never trust a value from the browser for a vocabulary.** Parse enums with
-  `enumOf()` / `enumParam()`, which reject anything outside the allowed list.
+  `enumOf()` / `enumParam()`, which reject anything outside the allowed list;
+  check lookup ids with `isSelectableLookup()`, which also refuses a retired
+  entry (something a foreign key cannot express).
+- **Write direction-agnostic CSS.** Use logical utilities — `ms-`/`me-`,
+  `ps-`/`pe-`, `start-`/`end-`, `text-start`/`text-end`, `border-s`/`border-e`
+  — never `ml-`, `pr-`, `left-`, `text-right` and friends, so the layout
+  mirrors correctly under Arabic. The one exception is symmetric centring
+  (`left-1/2` with `-translate-x-1/2`), which is correct in both directions.
+- **User-facing chrome goes through the dictionary.** Navigation and shared
+  labels use `getTranslator(locale)` with a typed `MessageKey`, so an
+  untranslated key is a compile error rather than an English string in an
+  Arabic UI.
 - **Lint & build must pass** before a change is considered done:
   `npm run lint && npm run build`.
 
@@ -142,12 +155,21 @@ single validated helper `lib/supabase/env.ts`; the secret key is read only in
   matching policy returns nothing — that is intentional.
 - **Migrations are ordered and immutable.** Add a new `NNNN_*.sql` file; never
   rewrite a migration that has already run. Numbering: `0001`, `0002`, …
-- **Enums are the source of truth for vocabularies** (`user_role`,
-  `driver_status`, `license_type`, `vehicle_type`, `vehicle_status`,
-  `visit_type`, `trip_type`, `visit_status`, `audit_action`) and must stay in
-  sync with `src/lib/constants/roles.ts`, `src/lib/constants/vocab.ts` and
-  `src/types/database.types.ts`. Enum values can be added by migration but
-  never removed.
+- **Enums are for workflow states; lookup tables are for business
+  vocabulary.** This is the dividing line:
+  - A value the application *branches on* is a PostgreSQL enum, so the set
+    cannot change without a code change: `user_role`, `driver_status`,
+    `license_type`, `vehicle_status`, `visit_status`, `audit_action`. Enums
+    must stay in sync with `src/lib/constants/roles.ts`,
+    `src/lib/constants/vocab.ts` and `src/types/database.types.ts`, and enum
+    values can be added by migration but **never removed**.
+  - A value that merely *classifies* a record is a lookup table
+    (`vehicle_types`, `trip_types`, `visit_types`), curated in the app at
+    `/settings/types` with no migration and no deployment. Foreign keys are
+    `ON DELETE RESTRICT`; retirement is `active = false`, never a delete, so
+    records that already reference an entry keep reading correctly.
+  - Before adding a vocabulary, ask whether any code would branch on it. If
+    not, it belongs in a lookup table.
 - **`updated_at`** is maintained by the `set_updated_at()` trigger, not the app.
 - **Role checks in policies** go through the `SECURITY DEFINER` helper
   `current_app_role()` (and `is_admin()`) to avoid RLS recursion on `profiles`.
@@ -164,17 +186,22 @@ single validated helper `lib/supabase/env.ts`; the secret key is read only in
 - `drivers` — driver roster; may link to a `profile`. Managed by Admin /
   Transport Supervisor; readable by Admin / Supervisor / Management (and a
   driver may read their own linked record). Stores `license_type`
-  (LIGHT / HEAVY) only — **never a licence number**.
+  (LIGHT / HEAVY) and `license_expiry` — but **never a licence number**.
 - `audit_logs` — **append-only** trail (see Security rules). Carries
   `old_value` / `new_value` / `reason` alongside the actor and action.
 
 **Tables (Phase 2)**
 
-- `vehicles` — fleet register. Managed by Admin / Supervisor, readable by
-  Management. Drivers have no access to vehicle master data.
-- `visits` — visit and trip planning. Managed by Admin / Supervisor,
-  readable by Management. Deliberately has **no `driver_id` or
-  `vehicle_id`**: assignment is Phase 3.
+- `vehicles` — fleet register, typed by `vehicle_types`. Managed by
+  Admin / Supervisor, readable by Management. Drivers have no access to
+  vehicle master data.
+- `vehicle_types` / `trip_types` / `visit_types` — editable vocabularies
+  (`id`, `name`, `active`, `created_at`). Same permission matrix as the
+  table that references them.
+- `visits` — visit and trip planning, classified by `visit_types` and
+  `trip_types`. Managed by Admin / Supervisor, readable by Management.
+  Deliberately has **no `driver_id` or `vehicle_id`**: assignment is
+  Phase 3.
 
 **Guards**
 
@@ -230,6 +257,7 @@ Defined in `src/lib/constants/roles.ts` and the `user_role` DB enum.
 | `MANAGE_VEHICLES`  | ADMIN, TRANSPORT_SUPERVISOR                  |
 | `VIEW_VEHICLES`    | ADMIN, TRANSPORT_SUPERVISOR, MANAGEMENT      |
 | `MANAGE_VISITS`    | ADMIN, TRANSPORT_SUPERVISOR                  |
+| `MANAGE_LOOKUPS`   | ADMIN, TRANSPORT_SUPERVISOR                  |
 | `VIEW_VISITS`      | ADMIN, TRANSPORT_SUPERVISOR, MANAGEMENT      |
 | `VIEW_AUDIT_LOGS`  | ADMIN, MANAGEMENT                            |
 
@@ -243,8 +271,9 @@ Defined in `src/lib/constants/roles.ts` and the `user_role` DB enum.
   **No Trips or Assignments yet.**
 - **Phase 2 — Core management (built).** User management UI (admin), driver
   CRUD, vehicle register, visit/trip scheduling with list and calendar views,
-  audit log viewer. i18n scaffolding (Arabic + English, RTL) is still
-  outstanding.
+  audit log viewer, editable lookup vocabularies, and i18n/RTL scaffolding
+  (English + Arabic direction switching; only navigation and shared labels
+  are translated so far — the rest is a later phase).
 - **Phase 3 — Trips & scheduling.** Trip definitions, vehicles, calendar.
 - **Phase 4 — Assignments & dispatch.** Assign drivers/vehicles to trips,
   driver-facing views, notifications.

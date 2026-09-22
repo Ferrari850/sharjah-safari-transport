@@ -11,8 +11,8 @@ import {
   VEHICLE_STATUSES,
   VEHICLE_STATUS_LABELS,
   VEHICLE_STATUS_VARIANTS,
-  VEHICLE_TYPE_LABELS,
 } from "@/lib/constants/vocab";
+import { listLookup } from "@/lib/data/lookups";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -49,10 +49,19 @@ export default async function VehicleDetailPage({
   if (!vehicle) notFound();
 
   const error = firstParam((await searchParams).error);
+  // Offer the active vocabulary plus whatever this record already uses, so a
+  // retired type stays visible on the record that references it.
+  const activeTypes = canManage
+    ? await listLookup("vehicle_types", { activeOnly: true })
+    : [];
+  const vehicleTypes =
+    vehicle.vehicle_type && !activeTypes.some((t) => t.id === vehicle.vehicle_type!.id)
+      ? [...activeTypes, { ...vehicle.vehicle_type, created_at: "" }]
+      : activeTypes;
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <Button asChild variant="ghost" size="sm" className="-ml-2">
+      <Button asChild variant="ghost" size="sm" className="-ms-2">
         <Link href="/vehicles">
           <ArrowLeft className="size-4" />
           All vehicles
@@ -61,7 +70,7 @@ export default async function VehicleDetailPage({
 
       <PageHeader
         title={vehicle.vehicle_number}
-        description={`${VEHICLE_TYPE_LABELS[vehicle.vehicle_type]} · ${vehicle.plate_number} · ${vehicle.capacity} seats`}
+        description={`${vehicle.vehicle_type?.name ?? "Untyped"} · ${vehicle.plate_number} · ${vehicle.capacity} seats`}
         actions={
           <Badge variant={VEHICLE_STATUS_VARIANTS[vehicle.status]}>
             {VEHICLE_STATUS_LABELS[vehicle.status]}
@@ -84,10 +93,7 @@ export default async function VehicleDetailPage({
           </CardHeader>
           <CardContent className="grid gap-4 text-sm sm:grid-cols-2">
             <Detail label="Plate number" value={vehicle.plate_number} />
-            <Detail
-              label="Type"
-              value={VEHICLE_TYPE_LABELS[vehicle.vehicle_type]}
-            />
+            <Detail label="Type" value={vehicle.vehicle_type?.name ?? "—"} />
             <Detail label="Capacity" value={`${vehicle.capacity} seats`} />
             <Detail
               label="Status"
@@ -103,7 +109,11 @@ export default async function VehicleDetailPage({
               <CardTitle className="text-base">Vehicle details</CardTitle>
             </CardHeader>
             <CardContent>
-              <VehicleForm action={updateVehicleAction} vehicle={vehicle} />
+              <VehicleForm
+                action={updateVehicleAction}
+                vehicle={vehicle}
+                vehicleTypes={vehicleTypes}
+              />
             </CardContent>
           </Card>
 

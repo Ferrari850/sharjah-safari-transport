@@ -86,6 +86,22 @@ export function DriverForm({
               </option>
             ))}
           </Select>
+          <p className="text-xs text-muted-foreground">
+            The licence class only — the document number is never stored.
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="license_expiry">Licence expiry</Label>
+          <Input
+            id="license_expiry"
+            name="license_expiry"
+            type="date"
+            defaultValue={driver?.license_expiry ?? ""}
+          />
+          <p className="text-xs text-muted-foreground">
+            Optional. Leave blank if it is not on file yet.
+          </p>
         </div>
 
         {!editing && (

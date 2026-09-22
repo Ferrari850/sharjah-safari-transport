@@ -9,8 +9,8 @@ import { recordAuditLog, diffValues } from "@/lib/auth/audit";
 import {
   VEHICLE_STATUSES,
   VEHICLE_STATUS_LABELS,
-  VEHICLE_TYPES,
 } from "@/lib/constants/vocab";
+import { isSelectableLookup } from "@/lib/data/lookups";
 import {
   describeDbError,
   enumOf,
@@ -34,22 +34,26 @@ export async function createVehicleAction(
 
   const vehicleNumber = str(form, "vehicle_number");
   const plateNumber = str(form, "plate_number");
-  const vehicleType = enumOf(form, "vehicle_type", VEHICLE_TYPES);
+  const vehicleTypeId = str(form, "vehicle_type_id");
   const status = enumOf(form, "status", VEHICLE_STATUSES);
   const capacity = intOf(form, "capacity");
 
   if (vehicleNumber === "") return fail("Vehicle number is required.");
   if (plateNumber === "") return fail("Plate number is required.");
-  if (!vehicleType) return fail("Choose a vehicle type.");
   if (!status) return fail("Choose a status.");
   if (capacity === null || capacity < 1 || capacity > MAX_CAPACITY) {
     return fail(`Capacity must be between 1 and ${MAX_CAPACITY}.`);
+  }
+  // The vocabulary lives in a table, so the value is checked against it
+  // rather than against a hard-coded list — and a retired type is refused.
+  if (!(await isSelectableLookup("vehicle_types", vehicleTypeId))) {
+    return fail("Choose a vehicle type.");
   }
 
   const record = {
     vehicle_number: vehicleNumber,
     plate_number: plateNumber,
-    vehicle_type: vehicleType,
+    vehicle_type_id: vehicleTypeId,
     capacity,
     status,
     notes: nullableStr(form, "notes"),
@@ -90,18 +94,28 @@ export async function updateVehicleAction(
   const before = await getVehicle(id);
   if (!before) return fail("That vehicle no longer exists.");
 
-  const vehicleType = enumOf(form, "vehicle_type", VEHICLE_TYPES);
+  const vehicleTypeId = str(form, "vehicle_type_id");
   const capacity = intOf(form, "capacity");
 
-  if (!vehicleType) return fail("Choose a vehicle type.");
   if (capacity === null || capacity < 1 || capacity > MAX_CAPACITY) {
     return fail(`Capacity must be between 1 and ${MAX_CAPACITY}.`);
+  }
+  // `before.vehicle_type_id` is allowed even if that type has since been
+  // retired, so editing an unrelated field does not force a re-categorisation.
+  if (
+    !(await isSelectableLookup(
+      "vehicle_types",
+      vehicleTypeId,
+      before.vehicle_type_id,
+    ))
+  ) {
+    return fail("Choose a vehicle type.");
   }
 
   const patch = {
     vehicle_number: str(form, "vehicle_number"),
     plate_number: str(form, "plate_number"),
-    vehicle_type: vehicleType,
+    vehicle_type_id: vehicleTypeId,
     capacity,
     notes: nullableStr(form, "notes"),
   };

@@ -53,13 +53,13 @@ export function FilterBar({
           Search
         </label>
         <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             id="filter-q"
             name="q"
             defaultValue={query}
             placeholder={queryPlaceholder}
-            className="pl-9"
+            className="ps-9"
           />
         </div>
       </div>

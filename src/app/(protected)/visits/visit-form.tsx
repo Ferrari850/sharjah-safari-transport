@@ -3,14 +3,7 @@
 import { useActionState } from "react";
 import Link from "next/link";
 
-import {
-  TRIP_TYPES,
-  TRIP_TYPE_LABELS,
-  VISIT_STATUSES,
-  VISIT_STATUS_LABELS,
-  VISIT_TYPES,
-  VISIT_TYPE_LABELS,
-} from "@/lib/constants/vocab";
+import { VISIT_STATUSES, VISIT_STATUS_LABELS } from "@/lib/constants/vocab";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,7 +11,7 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { SubmitButton } from "@/components/common/submit-button";
 import { FormMessage } from "@/components/common/form-message";
-import type { ActionState, Visit } from "@/types";
+import type { ActionState, Lookup, VisitWithTypes } from "@/types";
 
 const INITIAL: ActionState = {};
 
@@ -29,10 +22,15 @@ export function VisitForm({
   action,
   visit,
   defaultDate,
+  visitTypes,
+  tripTypes,
 }: {
   action: (prev: ActionState, form: FormData) => Promise<ActionState>;
-  visit?: Visit;
+  visit?: VisitWithTypes;
   defaultDate?: string;
+  /** Selectable types: active ones, plus whichever this record already uses. */
+  visitTypes: Lookup[];
+  tripTypes: Lookup[];
 }) {
   const [state, formAction] = useActionState(action, INITIAL);
   const editing = Boolean(visit);
@@ -99,30 +97,40 @@ export function VisitForm({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="visit_type">Visit type</Label>
+          <Label htmlFor="visit_type_id">Visit type</Label>
           <Select
-            id="visit_type"
-            name="visit_type"
-            defaultValue={visit?.visit_type ?? "REGULAR"}
+            id="visit_type_id"
+            name="visit_type_id"
+            defaultValue={visit?.visit_type_id ?? ""}
+            required
           >
-            {VISIT_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {VISIT_TYPE_LABELS[type]}
+            <option value="" disabled>
+              Choose a type…
+            </option>
+            {visitTypes.map((type) => (
+              <option key={type.id} value={type.id}>
+                {type.name}
+                {type.active ? "" : " (retired)"}
               </option>
             ))}
           </Select>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="trip_type">Trip type</Label>
+          <Label htmlFor="trip_type_id">Trip type</Label>
           <Select
-            id="trip_type"
-            name="trip_type"
-            defaultValue={visit?.trip_type ?? "ROUND_TRIP"}
+            id="trip_type_id"
+            name="trip_type_id"
+            defaultValue={visit?.trip_type_id ?? ""}
+            required
           >
-            {TRIP_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {TRIP_TYPE_LABELS[type]}
+            <option value="" disabled>
+              Choose a type…
+            </option>
+            {tripTypes.map((type) => (
+              <option key={type.id} value={type.id}>
+                {type.name}
+                {type.active ? "" : " (retired)"}
               </option>
             ))}
           </Select>

@@ -6,22 +6,20 @@ import { redirect } from "next/navigation";
 import { requireCapability } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { recordAuditLog, diffValues } from "@/lib/auth/audit";
-import {
-  TRIP_TYPES,
-  VISIT_STATUSES,
-  VISIT_TYPES,
-} from "@/lib/constants/vocab";
+import { VISIT_STATUSES } from "@/lib/constants/vocab";
+import { isSelectableLookup } from "@/lib/data/lookups";
 import {
   describeDbError,
   enumOf,
   fail,
   intOf,
+  isIsoDate,
   nullableStr,
   str,
   succeed,
 } from "@/lib/actions/helpers";
-import { getVisit, isIsoDate } from "@/lib/data/visits";
-import type { ActionState } from "@/types";
+import { getVisit } from "@/lib/data/visits";
+import type { ActionState, VisitStatus } from "@/types";
 
 const VISITS_PATH = "/visits";
 const MAX_VISITORS = 10000;
@@ -32,23 +30,33 @@ type VisitFields = {
   start_time: string;
   expected_end_time: string | null;
   delegation_name: string;
-  visit_type: (typeof VISIT_TYPES)[number];
-  trip_type: (typeof TRIP_TYPES)[number];
+  visit_type_id: string;
+  trip_type_id: string;
   number_of_visitors: number;
   pickup_location: string;
   destination: string;
   notes: string | null;
-  status: (typeof VISIT_STATUSES)[number];
+  status: VisitStatus;
 };
 
-/** Shared validation for create and edit. */
-function readVisitFields(form: FormData): VisitFields | string {
+/**
+ * Shared validation for create and edit.
+ *
+ * The two type ids are checked against their lookup tables rather than a
+ * hard-coded list, and a retired type is refused — except the one the record
+ * already carries (`allow`), so editing an unrelated field on an old visit
+ * does not force a re-categorisation.
+ */
+async function readVisitFields(
+  form: FormData,
+  allow?: { visitTypeId?: string | null; tripTypeId?: string | null },
+): Promise<VisitFields | string> {
   const visitDate = str(form, "visit_date");
   const startTime = str(form, "start_time");
   const endTime = nullableStr(form, "expected_end_time");
   const delegation = str(form, "delegation_name");
-  const visitType = enumOf(form, "visit_type", VISIT_TYPES);
-  const tripType = enumOf(form, "trip_type", TRIP_TYPES);
+  const visitTypeId = str(form, "visit_type_id");
+  const tripTypeId = str(form, "trip_type_id");
   const status = enumOf(form, "status", VISIT_STATUSES);
   const visitors = intOf(form, "number_of_visitors");
   const pickup = str(form, "pickup_location");
@@ -63,8 +71,6 @@ function readVisitFields(form: FormData): VisitFields | string {
     return "The expected end time must be after the start time.";
   }
   if (delegation === "") return "Delegation name is required.";
-  if (!visitType) return "Choose a visit type.";
-  if (!tripType) return "Choose a trip type.";
   if (!status) return "Choose a status.";
   if (visitors === null || visitors < 1 || visitors > MAX_VISITORS) {
     return `Number of visitors must be between 1 and ${MAX_VISITORS}.`;
@@ -72,13 +78,22 @@ function readVisitFields(form: FormData): VisitFields | string {
   if (pickup === "") return "Pickup location is required.";
   if (destination === "") return "Destination is required.";
 
+  if (
+    !(await isSelectableLookup("visit_types", visitTypeId, allow?.visitTypeId))
+  ) {
+    return "Choose a visit type.";
+  }
+  if (!(await isSelectableLookup("trip_types", tripTypeId, allow?.tripTypeId))) {
+    return "Choose a trip type.";
+  }
+
   return {
     visit_date: visitDate,
     start_time: startTime,
     expected_end_time: endTime,
     delegation_name: delegation,
-    visit_type: visitType,
-    trip_type: tripType,
+    visit_type_id: visitTypeId,
+    trip_type_id: tripTypeId,
     number_of_visitors: visitors,
     pickup_location: pickup,
     destination,
@@ -93,7 +108,7 @@ export async function createVisitAction(
 ): Promise<ActionState> {
   const profile = await requireCapability("MANAGE_VISITS");
 
-  const fields = readVisitFields(form);
+  const fields = await readVisitFields(form);
   if (typeof fields === "string") return fail(fields);
 
   const supabase = await createClient();
@@ -111,7 +126,7 @@ export async function createVisitAction(
     action: "INSERT",
     entityType: "visits",
     entityId: data.id,
-    description: `Created ${fields.visit_type} visit for ${fields.delegation_name} on ${fields.visit_date}`,
+    description: `Created a visit for ${fields.delegation_name} on ${fields.visit_date}`,
     newValue: { ...fields },
   });
 
@@ -134,7 +149,10 @@ export async function updateVisitAction(
     return fail("A cancelled visit cannot be edited.");
   }
 
-  const fields = readVisitFields(form);
+  const fields = await readVisitFields(form, {
+    visitTypeId: before.visit_type_id,
+    tripTypeId: before.trip_type_id,
+  });
   if (typeof fields === "string") return fail(fields);
 
   const { oldValue, newValue, changed } = diffValues(before, fields);
@@ -145,9 +163,10 @@ export async function updateVisitAction(
   if (error) return fail(describeDbError(error, "Could not save the visit."));
 
   await recordAuditLog({
-    action: changed.includes("status") && changed.length === 1
-      ? "STATUS_CHANGE"
-      : "UPDATE",
+    action:
+      changed.includes("status") && changed.length === 1
+        ? "STATUS_CHANGE"
+        : "UPDATE",
     entityType: "visits",
     entityId: id,
     description: `Updated ${changed.join(", ")} for ${before.delegation_name}`,

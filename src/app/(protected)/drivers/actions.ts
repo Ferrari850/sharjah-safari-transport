@@ -16,6 +16,7 @@ import {
   describeDbError,
   enumOf,
   fail,
+  nullableDate,
   nullableStr,
   str,
   succeed,
@@ -36,16 +37,20 @@ export async function createDriverAction(
   const licenseType = enumOf(form, "license_type", LICENSE_TYPES);
   const status = enumOf(form, "status", DRIVER_STATUSES);
 
+  const licenseExpiry = nullableDate(form, "license_expiry");
+
   if (employeeId === "") return fail("Employee number is required.");
   if (fullName === "") return fail("Full name is required.");
   if (!licenseType) return fail("Choose a licence type.");
   if (!status) return fail("Choose a status.");
+  if (licenseExpiry === undefined) return fail("Enter a valid licence expiry date.");
 
   const record = {
     employee_id: employeeId,
     full_name: fullName,
     phone: nullableStr(form, "phone"),
     license_type: licenseType,
+    license_expiry: licenseExpiry,
     status,
     notes: nullableStr(form, "notes"),
     profile_id: nullableStr(form, "profile_id"),
@@ -89,11 +94,17 @@ export async function updateDriverAction(
   const licenseType = enumOf(form, "license_type", LICENSE_TYPES);
   if (!licenseType) return fail("Choose a licence type.");
 
+  const licenseExpiry = nullableDate(form, "license_expiry");
+  if (licenseExpiry === undefined) {
+    return fail("Enter a valid licence expiry date.");
+  }
+
   const patch = {
     employee_id: str(form, "employee_id"),
     full_name: str(form, "full_name"),
     phone: nullableStr(form, "phone"),
     license_type: licenseType,
+    license_expiry: licenseExpiry,
     notes: nullableStr(form, "notes"),
     profile_id: nullableStr(form, "profile_id"),
   };
@@ -110,14 +121,17 @@ export async function updateDriverAction(
 
   // A licence-type change is operationally significant, so it is described
   // explicitly rather than folded into a generic field list.
-  const licenceChanged = changed.includes("license_type");
+  const licenceChanged =
+    changed.includes("license_type") || changed.includes("license_expiry");
   await recordAuditLog({
     action: "UPDATE",
     entityType: "drivers",
     entityId: id,
-    description: licenceChanged
+    description: changed.includes("license_type")
       ? `Licence type changed from ${LICENSE_TYPE_LABELS[before.license_type]} to ${LICENSE_TYPE_LABELS[licenseType]} for ${before.full_name}`
-      : `Updated ${changed.join(", ")} for ${before.full_name}`,
+      : licenceChanged
+        ? `Licence expiry changed from ${before.license_expiry ?? "none"} to ${licenseExpiry ?? "none"} for ${before.full_name}`
+        : `Updated ${changed.join(", ")} for ${before.full_name}`,
     oldValue,
     newValue,
   });

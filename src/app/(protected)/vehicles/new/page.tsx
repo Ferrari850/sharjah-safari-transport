@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { requireCapability } from "@/lib/auth/session";
+import { listLookup } from "@/lib/data/lookups";
 import {
   Card,
   CardContent,
@@ -15,6 +16,7 @@ export const metadata: Metadata = { title: "New vehicle" };
 
 export default async function NewVehiclePage() {
   await requireCapability("MANAGE_VEHICLES");
+  const vehicleTypes = await listLookup("vehicle_types", { activeOnly: true });
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -24,7 +26,7 @@ export default async function NewVehiclePage() {
           <CardTitle className="text-base">Vehicle details</CardTitle>
         </CardHeader>
         <CardContent>
-          <VehicleForm action={createVehicleAction} />
+          <VehicleForm action={createVehicleAction} vehicleTypes={vehicleTypes} />
         </CardContent>
       </Card>
     </div>

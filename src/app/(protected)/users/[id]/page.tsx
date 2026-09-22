@@ -50,7 +50,7 @@ export default async function UserDetailPage({
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <Button asChild variant="ghost" size="sm" className="-ml-2">
+      <Button asChild variant="ghost" size="sm" className="-ms-2">
         <Link href="/users">
           <ArrowLeft className="size-4" />
           All users

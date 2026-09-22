@@ -56,7 +56,7 @@ export default async function DriverDetailPage({
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <Button asChild variant="ghost" size="sm" className="-ml-2">
+      <Button asChild variant="ghost" size="sm" className="-ms-2">
         <Link href="/drivers">
           <ArrowLeft className="size-4" />
           All drivers
@@ -71,6 +71,10 @@ export default async function DriverDetailPage({
             <Badge variant="outline">
               {LICENSE_TYPE_LABELS[driver.license_type]}
             </Badge>
+            {driver.license_expiry &&
+              driver.license_expiry < new Date().toISOString().slice(0, 10) && (
+                <Badge variant="destructive">Licence expired</Badge>
+              )}
             <Badge variant={DRIVER_STATUS_VARIANTS[driver.status]}>
               {DRIVER_STATUS_LABELS[driver.status]}
             </Badge>
@@ -96,6 +100,14 @@ export default async function DriverDetailPage({
             <Detail
               label="Licence"
               value={LICENSE_TYPE_LABELS[driver.license_type]}
+            />
+            <Detail
+              label="Licence expiry"
+              value={
+                driver.license_expiry
+                  ? new Date(`${driver.license_expiry}T00:00:00`).toLocaleDateString("en-GB")
+                  : "—"
+              }
             />
             <Detail
               label="Linked login"

@@ -6,17 +6,14 @@ import { requireCapability } from "@/lib/auth/session";
 import { listVisitsInRange } from "@/lib/data/visits";
 import { firstParam } from "@/lib/data/search";
 import { can } from "@/lib/constants/roles";
-import {
-  VISIT_STATUS_LABELS,
-  VISIT_TYPE_LABELS,
-  VISIT_TYPE_VARIANTS,
-} from "@/lib/constants/vocab";
+import { VISIT_STATUS_LABELS } from "@/lib/constants/vocab";
+import { listLookup } from "@/lib/data/lookups";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/common/page-header";
-import type { Visit } from "@/types";
+import type { VisitWithTypes } from "@/types";
 
 export const metadata: Metadata = { title: "Visit calendar" };
 
@@ -38,8 +35,11 @@ export default async function VisitCalendarPage({
   const fromIso = iso(first);
   const toIso = iso(last);
 
-  const visits = await listVisitsInRange(fromIso, toIso);
-  const byDate = new Map<string, Visit[]>();
+  const [visits, visitTypes] = await Promise.all([
+    listVisitsInRange(fromIso, toIso),
+    listLookup("visit_types", { activeOnly: true }),
+  ]);
+  const byDate = new Map<string, VisitWithTypes[]>();
   for (const visit of visits) {
     const bucket = byDate.get(visit.visit_date) ?? [];
     bucket.push(visit);
@@ -167,7 +167,7 @@ export default async function VisitCalendarPage({
                         title={`${visit.delegation_name} — ${VISIT_STATUS_LABELS[visit.status]}`}
                       >
                         <Badge
-                          variant={VISIT_TYPE_VARIANTS[visit.visit_type]}
+                          variant="secondary"
                           className={cn(
                             "w-full justify-start truncate text-[10px]",
                             visit.status === "CANCELLED" && "line-through opacity-60",
@@ -193,17 +193,14 @@ export default async function VisitCalendarPage({
         </CardContent>
       </Card>
 
-      <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
         <span>Visit types:</span>
-        {Object.entries(VISIT_TYPE_LABELS).map(([value, label]) => (
-          <Badge
-            key={value}
-            variant={VISIT_TYPE_VARIANTS[value as keyof typeof VISIT_TYPE_VARIANTS]}
-            className="text-[10px]"
-          >
-            {label}
+        {visitTypes.map((type) => (
+          <Badge key={type.id} variant="secondary" className="text-[10px]">
+            {type.name}
           </Badge>
         ))}
+        {visitTypes.length === 0 && <span>none defined yet</span>}
       </div>
     </div>
   );

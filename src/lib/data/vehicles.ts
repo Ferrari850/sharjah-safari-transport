@@ -2,22 +2,26 @@ import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
 import { likePattern, sanitizeSearch } from "@/lib/data/search";
-import type { Vehicle, VehicleStatus, VehicleType } from "@/types";
+import { UUID_RE } from "@/lib/data/lookups";
+import type { VehicleStatus, VehicleWithType } from "@/types";
 
 export type VehicleFilters = {
   q?: string;
   status?: VehicleStatus | "";
-  type?: VehicleType | "";
+  typeId?: string;
 };
+
+const WITH_TYPE =
+  "*, vehicle_type:vehicle_types!vehicles_vehicle_type_id_fkey(id, name, active)";
 
 export async function listVehicles(
   filters: VehicleFilters = {},
-): Promise<Vehicle[]> {
+): Promise<VehicleWithType[]> {
   const supabase = await createClient();
 
   let query = supabase
     .from("vehicles")
-    .select("*")
+    .select(WITH_TYPE)
     .order("vehicle_number", { ascending: true });
 
   const term = sanitizeSearch(filters.q);
@@ -32,19 +36,24 @@ export async function listVehicles(
   }
 
   if (filters.status) query = query.eq("status", filters.status);
-  if (filters.type) query = query.eq("vehicle_type", filters.type);
+  // Guard the shape before it reaches a filter: a lookup id is always a uuid.
+  if (filters.typeId && UUID_RE.test(filters.typeId)) {
+    query = query.eq("vehicle_type_id", filters.typeId);
+  }
 
   const { data, error } = await query;
   if (error) throw new Error(`Could not load vehicles: ${error.message}`);
-  return data ?? [];
+  return (data ?? []) as unknown as VehicleWithType[];
 }
 
-export async function getVehicle(id: string): Promise<Vehicle | null> {
+export async function getVehicle(
+  id: string,
+): Promise<VehicleWithType | null> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("vehicles")
-    .select("*")
+    .select(WITH_TYPE)
     .eq("id", id)
     .maybeSingle();
-  return data ?? null;
+  return (data as unknown as VehicleWithType) ?? null;
 }

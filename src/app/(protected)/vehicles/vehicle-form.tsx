@@ -6,8 +6,6 @@ import Link from "next/link";
 import {
   VEHICLE_STATUSES,
   VEHICLE_STATUS_LABELS,
-  VEHICLE_TYPES,
-  VEHICLE_TYPE_LABELS,
 } from "@/lib/constants/vocab";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,16 +14,19 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { SubmitButton } from "@/components/common/submit-button";
 import { FormMessage } from "@/components/common/form-message";
-import type { ActionState, Vehicle } from "@/types";
+import type { ActionState, Lookup, VehicleWithType } from "@/types";
 
 const INITIAL: ActionState = {};
 
 export function VehicleForm({
   action,
   vehicle,
+  vehicleTypes,
 }: {
   action: (prev: ActionState, form: FormData) => Promise<ActionState>;
-  vehicle?: Vehicle;
+  vehicle?: VehicleWithType;
+  /** Selectable types: active ones, plus whichever this record already uses. */
+  vehicleTypes: Lookup[];
 }) {
   const [state, formAction] = useActionState(action, INITIAL);
   const editing = Boolean(vehicle);
@@ -57,15 +58,20 @@ export function VehicleForm({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="vehicle_type">Type</Label>
+          <Label htmlFor="vehicle_type_id">Type</Label>
           <Select
-            id="vehicle_type"
-            name="vehicle_type"
-            defaultValue={vehicle?.vehicle_type ?? "BUS"}
+            id="vehicle_type_id"
+            name="vehicle_type_id"
+            defaultValue={vehicle?.vehicle_type_id ?? ""}
+            required
           >
-            {VEHICLE_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {VEHICLE_TYPE_LABELS[type]}
+            <option value="" disabled>
+              Choose a type…
+            </option>
+            {vehicleTypes.map((type) => (
+              <option key={type.id} value={type.id}>
+                {type.name}
+                {type.active ? "" : " (retired)"}
               </option>
             ))}
           </Select>

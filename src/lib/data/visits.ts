@@ -2,24 +2,30 @@ import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
 import { likePattern, sanitizeSearch } from "@/lib/data/search";
-import type { Visit, VisitStatus, VisitType } from "@/types";
+import { UUID_RE } from "@/lib/data/lookups";
+import { isIsoDate } from "@/lib/actions/helpers";
+import type { VisitStatus, VisitWithTypes } from "@/types";
 
 export type VisitFilters = {
   q?: string;
   status?: VisitStatus | "";
-  type?: VisitType | "";
+  typeId?: string;
   from?: string;
   to?: string;
 };
 
+const WITH_TYPES =
+  "*, visit_type:visit_types!visits_visit_type_id_fkey(id, name, active)," +
+  " trip_type:trip_types!visits_trip_type_id_fkey(id, name, active)";
+
 export async function listVisits(
   filters: VisitFilters = {},
-): Promise<Visit[]> {
+): Promise<VisitWithTypes[]> {
   const supabase = await createClient();
 
   let query = supabase
     .from("visits")
-    .select("*")
+    .select(WITH_TYPES)
     .order("visit_date", { ascending: false })
     .order("start_time", { ascending: true });
 
@@ -36,47 +42,45 @@ export async function listVisits(
   }
 
   if (filters.status) query = query.eq("status", filters.status);
-  if (filters.type) query = query.eq("visit_type", filters.type);
+  if (filters.typeId && UUID_RE.test(filters.typeId)) {
+    query = query.eq("visit_type_id", filters.typeId);
+  }
   if (isIsoDate(filters.from)) query = query.gte("visit_date", filters.from!);
   if (isIsoDate(filters.to)) query = query.lte("visit_date", filters.to!);
 
   const { data, error } = await query;
   if (error) throw new Error(`Could not load visits: ${error.message}`);
-  return data ?? [];
+  return (data ?? []) as unknown as VisitWithTypes[];
 }
 
-export async function getVisit(id: string): Promise<Visit | null> {
+export async function getVisit(id: string): Promise<VisitWithTypes | null> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("visits")
-    .select("*")
+    .select(WITH_TYPES)
     .eq("id", id)
     .maybeSingle();
-  return data ?? null;
+  return (data as unknown as VisitWithTypes) ?? null;
 }
 
 /** Every visit inside a calendar month, ordered for day-by-day rendering. */
 export async function listVisitsInRange(
   fromIso: string,
   toIso: string,
-): Promise<Visit[]> {
+): Promise<VisitWithTypes[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("visits")
-    .select("*")
+    .select(WITH_TYPES)
     .gte("visit_date", fromIso)
     .lte("visit_date", toIso)
     .order("visit_date", { ascending: true })
     .order("start_time", { ascending: true });
 
   if (error) throw new Error(`Could not load the calendar: ${error.message}`);
-  return data ?? [];
+  return (data ?? []) as unknown as VisitWithTypes[];
 }
 
-/** Guards a date coming from a query parameter before it reaches a filter. */
-export function isIsoDate(value: string | undefined | null): boolean {
-  if (!value) return false;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const parsed = new Date(`${value}T00:00:00Z`);
-  return !Number.isNaN(parsed.getTime());
-}
+// Re-exported so pages can guard a date query parameter without reaching
+// into the actions layer.
+export { isIsoDate };

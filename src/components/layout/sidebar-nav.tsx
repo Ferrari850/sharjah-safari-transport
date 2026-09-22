@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
 import { navItemsFor } from "@/components/layout/nav-items";
+import { getTranslator } from "@/lib/i18n/dictionaries";
+import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/config";
 import type { UserRole } from "@/lib/constants/roles";
 
 function isActive(pathname: string, href: string): boolean {
@@ -13,12 +15,19 @@ function isActive(pathname: string, href: string): boolean {
 }
 
 /** Vertical navigation for the desktop sidebar. */
-export function SidebarNav({ role }: { role: UserRole }) {
+export function SidebarNav({
+  role,
+  locale = DEFAULT_LOCALE,
+}: {
+  role: UserRole;
+  locale?: Locale;
+}) {
   const pathname = usePathname();
   const items = navItemsFor(role);
+  const t = getTranslator(locale);
 
   return (
-    <nav className="flex flex-col gap-1 p-3" aria-label="Main">
+    <nav className="flex flex-col gap-1 p-3" aria-label={t("nav.main")}>
       {items.map((item) => {
         const Icon = item.icon;
         const active = isActive(pathname, item.href);
@@ -36,7 +45,7 @@ export function SidebarNav({ role }: { role: UserRole }) {
             )}
           >
             <Icon className="size-4" />
-            {item.label}
+            {t(item.labelKey)}
           </Link>
         );
       })}
@@ -48,14 +57,21 @@ export function SidebarNav({ role }: { role: UserRole }) {
  * Horizontal, scrollable navigation shown below the header on small
  * screens, where the sidebar is hidden.
  */
-export function MobileNav({ role }: { role: UserRole }) {
+export function MobileNav({
+  role,
+  locale = DEFAULT_LOCALE,
+}: {
+  role: UserRole;
+  locale?: Locale;
+}) {
   const pathname = usePathname();
   const items = navItemsFor(role);
+  const t = getTranslator(locale);
 
   return (
     <nav
       className="flex gap-1 overflow-x-auto border-b bg-card px-2 py-2 lg:hidden"
-      aria-label="Main"
+      aria-label={t("nav.main")}
     >
       {items.map((item) => {
         const Icon = item.icon;
@@ -74,7 +90,7 @@ export function MobileNav({ role }: { role: UserRole }) {
             )}
           >
             <Icon className="size-4" />
-            {item.label}
+            {t(item.labelKey)}
           </Link>
         );
       })}

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { requireCapability } from "@/lib/auth/session";
 import { isIsoDate } from "@/lib/data/visits";
+import { listLookup } from "@/lib/data/lookups";
 import { firstParam } from "@/lib/data/search";
 import {
   Card,
@@ -22,6 +23,11 @@ export default async function NewVisitPage({
 }) {
   await requireCapability("MANAGE_VISITS");
 
+  const [visitTypes, tripTypes] = await Promise.all([
+    listLookup("visit_types", { activeOnly: true }),
+    listLookup("trip_types", { activeOnly: true }),
+  ]);
+
   const dateParam = firstParam((await searchParams).date);
   const defaultDate = isIsoDate(dateParam) ? dateParam : undefined;
 
@@ -33,7 +39,12 @@ export default async function NewVisitPage({
           <CardTitle className="text-base">Visit details</CardTitle>
         </CardHeader>
         <CardContent>
-          <VisitForm action={createVisitAction} defaultDate={defaultDate} />
+          <VisitForm
+            action={createVisitAction}
+            defaultDate={defaultDate}
+            visitTypes={visitTypes}
+            tripTypes={tripTypes}
+          />
         </CardContent>
       </Card>
     </div>

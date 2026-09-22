@@ -8,12 +8,10 @@ import { getVisit } from "@/lib/data/visits";
 import { firstParam } from "@/lib/data/search";
 import { can } from "@/lib/constants/roles";
 import {
-  TRIP_TYPE_LABELS,
   VISIT_STATUS_LABELS,
   VISIT_STATUS_VARIANTS,
-  VISIT_TYPE_LABELS,
-  VISIT_TYPE_VARIANTS,
 } from "@/lib/constants/vocab";
+import { listLookup } from "@/lib/data/lookups";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -47,6 +45,20 @@ export default async function VisitDetailPage({
 
   const error = firstParam((await searchParams).error);
   const cancelled = visit.status === "CANCELLED";
+
+  // Active vocabularies, plus whatever this visit already uses, so a retired
+  // type remains visible on the record that references it.
+  const editable = canManage && !cancelled;
+  const [activeVisitTypes, activeTripTypes] = editable
+    ? await Promise.all([
+        listLookup("visit_types", { activeOnly: true }),
+        listLookup("trip_types", { activeOnly: true }),
+      ])
+    : [[], []];
+  const withCurrent = (active: typeof activeVisitTypes, current: typeof visit.visit_type) =>
+    current && !active.some((t) => t.id === current.id)
+      ? [...active, { ...current, created_at: "" }]
+      : active;
   const prettyDate = new Date(`${visit.visit_date}T00:00:00`).toLocaleDateString(
     "en-GB",
     { weekday: "long", day: "numeric", month: "long", year: "numeric" },
@@ -54,7 +66,7 @@ export default async function VisitDetailPage({
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <Button asChild variant="ghost" size="sm" className="-ml-2">
+      <Button asChild variant="ghost" size="sm" className="-ms-2">
         <Link href="/visits">
           <ArrowLeft className="size-4" />
           All visits
@@ -70,9 +82,7 @@ export default async function VisitDetailPage({
         }`}
         actions={
           <div className="flex items-center gap-2">
-            <Badge variant={VISIT_TYPE_VARIANTS[visit.visit_type]}>
-              {VISIT_TYPE_LABELS[visit.visit_type]}
-            </Badge>
+            <Badge variant="secondary">{visit.visit_type?.name ?? "—"}</Badge>
             <Badge variant={VISIT_STATUS_VARIANTS[visit.status]}>
               {VISIT_STATUS_LABELS[visit.status]}
             </Badge>
@@ -97,14 +107,19 @@ export default async function VisitDetailPage({
         </Alert>
       )}
 
-      {canManage && !cancelled ? (
+      {editable ? (
         <>
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Visit details</CardTitle>
             </CardHeader>
             <CardContent>
-              <VisitForm action={updateVisitAction} visit={visit} />
+              <VisitForm
+                action={updateVisitAction}
+                visit={visit}
+                visitTypes={withCurrent(activeVisitTypes, visit.visit_type)}
+                tripTypes={withCurrent(activeTripTypes, visit.trip_type)}
+              />
             </CardContent>
           </Card>
 
@@ -141,14 +156,8 @@ export default async function VisitDetailPage({
           </CardHeader>
           <CardContent className="grid gap-4 text-sm sm:grid-cols-2">
             <Detail label="Delegation" value={visit.delegation_name} />
-            <Detail
-              label="Visit type"
-              value={VISIT_TYPE_LABELS[visit.visit_type]}
-            />
-            <Detail
-              label="Trip type"
-              value={TRIP_TYPE_LABELS[visit.trip_type]}
-            />
+            <Detail label="Visit type" value={visit.visit_type?.name ?? "—"} />
+            <Detail label="Trip type" value={visit.trip_type?.name ?? "—"} />
             <Detail
               label="Visitors"
               value={String(visit.number_of_visitors)}

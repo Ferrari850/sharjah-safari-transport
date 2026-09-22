@@ -115,6 +115,7 @@ export default async function DriversPage({
                   <TableHead>Employee no.</TableHead>
                   <TableHead>Mobile</TableHead>
                   <TableHead>Licence</TableHead>
+                  <TableHead>Expires</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Login</TableHead>
                 </TableRow>
@@ -142,6 +143,9 @@ export default async function DriversPage({
                       </Badge>
                     </TableCell>
                     <TableCell>
+                      <LicenceExpiry value={driver.license_expiry} />
+                    </TableCell>
+                    <TableCell>
                       <Badge variant={DRIVER_STATUS_VARIANTS[driver.status]}>
                         {DRIVER_STATUS_LABELS[driver.status]}
                       </Badge>
@@ -161,5 +165,23 @@ export default async function DriversPage({
         Showing {drivers.length} driver{drivers.length === 1 ? "" : "s"}.
       </p>
     </div>
+  );
+}
+
+/**
+ * Licence expiry, flagged when it has already passed — a lapsed licence is
+ * an operational problem, so it should be visible in the list rather than
+ * only on the detail page.
+ */
+function LicenceExpiry({ value }: { value: string | null }) {
+  if (!value) return <span className="text-muted-foreground">—</span>;
+
+  const expired = value < new Date().toISOString().slice(0, 10);
+  const formatted = new Date(`${value}T00:00:00`).toLocaleDateString("en-GB");
+
+  return expired ? (
+    <Badge variant="destructive">Expired {formatted}</Badge>
+  ) : (
+    <span className="text-muted-foreground">{formatted}</span>
   );
 }
